@@ -36,6 +36,23 @@ npm run dev
 O app abre em `http://localhost:5173`.
 O Supabase Studio fica em `http://localhost:54323`.
 
+## MCP Server
+
+Pré-requisito: Node.js 22.19+ (exigido pelo MCP Inspector v2).
+
+```bash
+cp apps/mcp-server/.env.example apps/mcp-server/.env
+npm run mcp:inspector
+```
+
+Abra a URL completa impressa no terminal (`http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`). O Inspector carrega `apps/mcp-server/inspector.config.json` com o servidor **devreview** (STDIO, `node --env-file=.env build/index.js`), que expõe a tool `get_team_review_rules`. Nesta fase os dados são mock, espelhando `supabase/seed.sql` (time demo `11111111-1111-1111-1111-111111111111`).
+
+Pela linha de comando:
+
+```bash
+npm run mcp:inspector:cli -- --server devreview --method tools/list
+```
+
 ## Estrutura
 
 ```

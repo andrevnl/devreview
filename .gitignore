@@ -6,4 +6,6 @@ build/
 !.env.example
 docs/
 .supabase/
+supabase/.branches/
+supabase/.temp/
 *.tsbuildinfo

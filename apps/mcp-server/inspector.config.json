@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "devreview": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["--env-file=.env", "build/index.js"]
+    }
+  }
+}

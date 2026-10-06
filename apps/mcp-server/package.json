@@ -9,7 +9,12 @@
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "inspector": "npx @modelcontextprotocol/inspector build/index.js"
+    "start": "node --env-file=.env build/index.js",
+    "inspector": "npm run build && npx -y @modelcontextprotocol/inspector@2.9.0 --config inspector.config.json",
+    "inspector:cli": "npm run build && npx -y @modelcontextprotocol/inspector@2.9.0 --cli --config inspector.config.json"
+  },
+  "engines": {
+    "node": ">=22.19.0"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",

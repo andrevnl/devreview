@@ -1,4 +1,15 @@
-// DevReview MCP Server
-// Este arquivo será construído ao longo do curso.
-// Módulo 1: server mínimo com tool mockada
-// Módulo 4: tools reais conectadas ao Supabase
+#!/usr/bin/env node
+import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
+import { createServer } from "./server.js";
+
+// No STDIO o stdout é o canal JSON-RPC: logs sempre via console.error.
+async function main() {
+  const server = createServer();
+  await server.connect(new StdioServerTransport());
+  console.error("devreview-mcp rodando via stdio");
+}
+
+main().catch((error) => {
+  console.error("Erro fatal no devreview-mcp:", error);
+  process.exit(1);
+});
