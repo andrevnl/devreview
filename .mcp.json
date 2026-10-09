@@ -1,0 +1,13 @@
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "http://127.0.0.1:54321/mcp"
+    },
+    "devreview": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["--env-file=apps/mcp-server/.env", "apps/mcp-server/build/index.js"]
+    }
+  }
+}
