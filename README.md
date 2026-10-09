@@ -35,11 +35,7 @@ O app abre em `http://localhost:5173`.
 
 ## MCP no Claude Code
 
-O `.mcp.json` não é versionado, porque vai guardar tokens (GitHub MCP, chave de escrita do Supabase). Crie o seu a partir do modelo:
-
-```bash
-cp .mcp.example.json .mcp.json
-```
+O `.mcp.json` não é versionado, porque vai guardar tokens (GitHub MCP, chave de escrita do Supabase). Cada pessoa mantém o seu na raiz do projeto.
 
 O servidor `supabase` usa `mcp.supabase.com` e pede login no Supabase (OAuth) na primeira conexão.
 
