@@ -12,7 +12,11 @@ Ferramenta de code review assistida por IA — projeto base do Curso 5: MCP, Con
 
 - Node.js 20+
 - npm 10+
-- Supabase CLI (`npm install -g supabase`)
+- Supabase CLI (`npm install -g supabase`), usado para aplicar migrations no projeto na nuvem
+
+## Banco de dados
+
+O projeto usa somente o Supabase na nuvem (`https://mxhyhdqktujfwtgydjte.supabase.co`, ref `mxhyhdqktujfwtgydjte`). Não há banco local.
 
 ## Como rodar
 
@@ -20,21 +24,24 @@ Ferramenta de code review assistida por IA — projeto base do Curso 5: MCP, Con
 # 1. Instalar dependências
 npm install
 
-# 2. Iniciar o Supabase local
-npx supabase start
-
-# 3. Aplicar migrations e seed data
-npx supabase db reset
-
-# 4. Copiar variáveis de ambiente
+# 2. Copiar variáveis de ambiente (já apontam para o projeto na nuvem)
 cp apps/web/.env.example apps/web/.env
 
-# 5. Iniciar o frontend
+# 3. Iniciar o frontend
 npm run dev
 ```
 
 O app abre em `http://localhost:5173`.
-O Supabase Studio fica em `http://localhost:54323`.
+
+## MCP no Claude Code
+
+O `.mcp.json` não é versionado, porque vai guardar tokens (GitHub MCP, chave de escrita do Supabase). Crie o seu a partir do modelo:
+
+```bash
+cp .mcp.example.json .mcp.json
+```
+
+O servidor `supabase` usa `mcp.supabase.com` e pede login no Supabase (OAuth) na primeira conexão.
 
 ## MCP Server
 

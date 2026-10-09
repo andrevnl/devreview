@@ -10,3 +10,4 @@ supabase/.branches/
 supabase/.temp/
 *.tsbuildinfo
 .DS_Store
+.mcp.json
