@@ -11,7 +11,7 @@ let client: SupabaseClient | null = null;
 
 /**
  * Cliente Supabase lazy: o servidor sobe mesmo sem `.env`.
- * Ainda não é usado pelas tools (dados mock nesta fase).
+ * Usado por todas as tools (chave publishable, sujeita ao RLS).
  */
 export function getSupabase(): SupabaseClient {
   if (client) return client;
