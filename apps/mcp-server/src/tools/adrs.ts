@@ -15,9 +15,14 @@ export function registerAdrTools(server: McpServer) {
           .string()
           .uuid()
           .describe("UUID of the team (from the teams table)"),
+        // Vai para o filtro .or() do PostgREST: vírgula e parênteses quebram a
+        // sintaxe, e % _ * viram curingas. Só letras, números, espaço, - e .
         keyword: z
           .string()
+          .trim()
           .min(2)
+          .max(50)
+          .regex(/^[\p{L}\p{N} .-]+$/u, "Use only letters, numbers, spaces, '-' and '.'")
           .describe(
             'Search term matched against ADR title and decision (e.g., "redux", "cache", "auth")',
           ),

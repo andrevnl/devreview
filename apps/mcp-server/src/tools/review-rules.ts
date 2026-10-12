@@ -1,6 +1,10 @@
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getSupabase } from '../lib/supabase.js';
+import type { RuleSeverity } from '../schemas.js';
+
+// severity é texto no banco: .order() seria alfabético (error, info, warning).
+const SEVERITY_WEIGHT: Record<RuleSeverity, number> = { error: 0, warning: 1, info: 2 };
 
 export function registerReviewRulesTools(server: McpServer) {
 	server.registerTool(
@@ -8,7 +12,7 @@ export function registerReviewRulesTools(server: McpServer) {
 		{
 			title: 'Get Team Review Rules',
 			description:
-				'Retrieves active code review rules for a team, grouped by category. ' +
+				'Retrieves active code review rules for a team, sorted by severity (error, warning, info) and category. ' +
 				"Use when reviewing a PR to know the team's coding standards.",
 			inputSchema: {
 				team_id: z.string().uuid().describe('UUID of the team (from the teams table)'),
@@ -23,8 +27,7 @@ export function registerReviewRulesTools(server: McpServer) {
 				.from('review_rules')
 				.select('category, rule, severity')
 				.eq('team_id', team_id)
-				.eq('active', true)
-				.order('severity');
+				.eq('active', true);
 
 			if (category) query = query.eq('category', category);
 
@@ -33,11 +36,17 @@ export function registerReviewRulesTools(server: McpServer) {
 				throw new Error(`Failed to fetch review rules: ${error.message}`);
 			}
 
+			const rules = [...data].sort(
+				(a, b) =>
+					SEVERITY_WEIGHT[a.severity as RuleSeverity] - SEVERITY_WEIGHT[b.severity as RuleSeverity] ||
+					a.category.localeCompare(b.category),
+			);
+
 			return {
 				content: [
 					{
 						type: 'text',
-						text: JSON.stringify({ rules: data, count: data.length }),
+						text: JSON.stringify({ rules, count: rules.length }),
 					},
 				],
 			};
