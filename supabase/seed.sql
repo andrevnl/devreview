@@ -18,12 +18,12 @@ insert into review_rules (team_id, category, severity, active, rule) values
 
 -- Histórico de reviews
 insert into review_history (team_id, pr_url, pr_number, repo, issues_found, reviewed_at, review_summary) values
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/devreview/pull/142', 142, 'alura/devreview',  5, '2026-03-15T14:32:00Z', 'Exposição de variável de ambiente no bundle de produção detectada.'),
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/devreview/pull/139', 139, 'alura/devreview',  2, '2026-03-14T10:10:00Z', 'Lógica de negócio misturada com componente de UI.'),
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/platform/pull/137',  137, 'alura/platform',   0, '2026-03-13T09:00:00Z', 'Nenhum problema encontrado. PR aprovado sem ressalvas.'),
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/platform/pull/201',  201, 'alura/platform',   8, '2026-03-12T16:45:00Z', 'Múltiplas violações de arquitetura e padrões de nomenclatura.'),
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/mobile-app/pull/88',  88, 'alura/mobile-app', 1, '2026-03-11T11:20:00Z', 'Input sem validação adequada no formulário de cadastro.'),
-  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/mobile-app/pull/55',  55, 'alura/mobile-app', 3, '2026-03-10T08:05:00Z', 'Componentes sem uso de memo causando re-renders em lista.');
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/devreview/pull/142', 142, 'alura/devreview',  5, '2026-10-11T14:32:00Z', 'Exposição de variável de ambiente no bundle de produção detectada.'),
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/devreview/pull/139', 139, 'alura/devreview',  2, '2026-10-10T10:10:00Z', 'Lógica de negócio misturada com componente de UI.'),
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/platform/pull/137',  137, 'alura/platform',   0, '2026-10-09T09:00:00Z', 'Nenhum problema encontrado. PR aprovado sem ressalvas.'),
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/platform/pull/201',  201, 'alura/platform',   8, '2026-10-08T16:45:00Z', 'Múltiplas violações de arquitetura e padrões de nomenclatura.'),
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/mobile-app/pull/88',  88, 'alura/mobile-app', 1, '2026-10-07T11:20:00Z', 'Input sem validação adequada no formulário de cadastro.'),
+  ('11111111-1111-1111-1111-111111111111', 'https://github.com/alura/mobile-app/pull/55',  55, 'alura/mobile-app', 3, '2026-10-06T08:05:00Z', 'Componentes sem uso de memo causando re-renders em lista.');
 
 -- ADRs (Architecture Decision Records)
 insert into adrs (team_id, title, context, decision, status, created_at) values
