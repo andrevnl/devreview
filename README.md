@@ -18,7 +18,7 @@ Ferramenta de code review assistida por IA — projeto base do Curso 5: MCP, Con
 
 O projeto usa somente o Supabase na nuvem (`https://mxhyhdqktujfwtgydjte.supabase.co`, ref `mxhyhdqktujfwtgydjte`). Não há banco local.
 
-O RLS deixa a chave publishable só ler, com uma exceção: o web app pode criar, editar e excluir `review_rules` e `adrs` do time demo (`11111111-1111-1111-1111-111111111111`). Como a chave fica exposta no navegador, qualquer pessoa com ela pode alterar esses dados.
+O RLS deixa a chave publishable só ler, com uma exceção: o web app pode criar, editar e excluir `review_rules`, `adrs` e `review_history` do time demo (`11111111-1111-1111-1111-111111111111`). Como a chave fica exposta no navegador, qualquer pessoa com ela pode alterar esses dados.
 
 ## Como rodar
 
