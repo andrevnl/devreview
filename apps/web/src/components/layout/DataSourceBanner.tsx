@@ -29,7 +29,7 @@ export function DataSourceBanner() {
 
   const hint =
     /fetch|network|failed/i.test(fetchError) || fetchError.includes("ECONNREFUSED")
-      ? " Se o .env já está certo, inicie o banco: npx supabase start e depois npx supabase db reset."
+      ? " Confira a conexão com a internet e se o projeto no Supabase (nuvem) está ativo, e não pausado."
       : "";
 
   return (
