@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { FieldError } from "@/components/shared/FieldError";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import { CategoryBadge } from "@/components/shared/CategoryBadge";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,14 @@ import {
   deleteRule,
 } from "@/store/slices/rulesSlice";
 import { TEAM_ID } from "@/lib/team";
+import { FIELD_LIMITS } from "@/lib/validation";
+import {
+  RuleFormValues,
+  emptyRuleForm,
+  getRuleFormErrors,
+  ruleToForm,
+  toRuleInput,
+} from "@/lib/forms/ruleForm";
 import { ReviewRule, RuleCategory, RuleSeverity } from "@/types";
 
 export function RulesPage() {
@@ -57,10 +66,7 @@ export function RulesPage() {
     saveError,
   } = useAppSelector((s) => s.rules);
 
-  const [formRule, setFormRule] = useState("");
-  const [formCategory, setFormCategory] = useState<RuleCategory>("style");
-  const [formSeverity, setFormSeverity] = useState<RuleSeverity>("warning");
-  const [formActive, setFormActive] = useState(true);
+  const [form, setForm] = useState<RuleFormValues>(emptyRuleForm);
   const [ruleToDelete, setRuleToDelete] = useState<ReviewRule | null>(null);
 
   useEffect(() => {
@@ -71,38 +77,35 @@ export function RulesPage() {
     ? rules.find((r) => r.id === editingRuleId)
     : null;
 
+  function setField<K extends keyof RuleFormValues>(
+    field: K,
+    value: RuleFormValues[K]
+  ) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
   function handleOpenNew() {
-    setFormRule("");
-    setFormCategory("style");
-    setFormSeverity("warning");
-    setFormActive(true);
+    setForm(emptyRuleForm());
     dispatch(openModal(null));
   }
 
   function handleOpenEdit(id: string) {
     const rule = rules.find((r) => r.id === id);
     if (rule) {
-      setFormRule(rule.rule);
-      setFormCategory(rule.category);
-      setFormSeverity(rule.severity);
-      setFormActive(rule.active);
+      setForm(ruleToForm(rule));
       dispatch(openModal(id));
     }
   }
 
+  const formErrors = getRuleFormErrors(form);
+  const ruleInput = toRuleInput(form);
+
   async function handleSave() {
-    const input = {
-      rule: formRule.trim(),
-      category: formCategory,
-      severity: formSeverity,
-    };
-    if (!input.rule) return;
+    if (!ruleInput) return;
     if (editingRuleId) {
-      await dispatch(
-        updateRule({ id: editingRuleId, input: { ...input, active: formActive } })
-      );
+      await dispatch(updateRule({ id: editingRuleId, input: ruleInput }));
     } else {
-      await dispatch(createRule({ teamId: TEAM_ID, input }));
+      await dispatch(createRule({ teamId: TEAM_ID, input: ruleInput }));
     }
   }
 
@@ -280,19 +283,21 @@ export function RulesPage() {
               </Label>
               <Input
                 id="rule-text"
-                value={formRule}
-                onChange={(e) => setFormRule(e.target.value)}
+                value={form.rule}
+                maxLength={FIELD_LIMITS.ruleText}
+                onChange={(e) => setField("rule", e.target.value)}
                 placeholder="Ex: Nunca expor tokens em código-fonte"
                 className="border-gray-700 bg-gray-800 text-white placeholder:text-gray-600"
               />
+              <FieldError message={formErrors.rule} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-gray-300">Categoria</Label>
                 <Select
-                  value={formCategory}
-                  onValueChange={(v) => setFormCategory(v as RuleCategory)}
+                  value={form.category}
+                  onValueChange={(v) => setField("category", v as RuleCategory)}
                 >
                   <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
                     <SelectValue />
@@ -309,8 +314,8 @@ export function RulesPage() {
               <div className="space-y-1.5">
                 <Label className="text-gray-300">Severidade</Label>
                 <Select
-                  value={formSeverity}
-                  onValueChange={(v) => setFormSeverity(v as RuleSeverity)}
+                  value={form.severity}
+                  onValueChange={(v) => setField("severity", v as RuleSeverity)}
                 >
                   <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
                     <SelectValue />
@@ -337,8 +342,8 @@ export function RulesPage() {
                 </div>
                 <Switch
                   id="rule-active"
-                  checked={formActive}
-                  onCheckedChange={setFormActive}
+                  checked={form.active}
+                  onCheckedChange={(v) => setField("active", v)}
                   className="data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-gray-700"
                 />
               </div>
@@ -362,7 +367,7 @@ export function RulesPage() {
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-500"
-              disabled={saving || !formRule.trim()}
+              disabled={saving || !ruleInput}
               onClick={handleSave}
             >
               {saving ? "Salvando..." : "Salvar"}

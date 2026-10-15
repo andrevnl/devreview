@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { ExternalLink, Eye, Pencil, Plus, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { FieldError } from "@/components/shared/FieldError";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import { Button } from "@/components/ui/button";
 import {
@@ -34,6 +35,15 @@ import {
   deleteReview,
 } from "@/store/slices/historySlice";
 import { TEAM_ID } from "@/lib/team";
+import { FIELD_LIMITS, safeHref } from "@/lib/validation";
+import {
+  ReviewFormValues,
+  defaultPrUrl,
+  emptyReviewForm,
+  getReviewFormErrors,
+  reviewToForm,
+  toReviewInput,
+} from "@/lib/forms/reviewForm";
 import { ReviewHistory, RuleSeverity } from "@/types";
 
 function issueSeverity(issues: number): RuleSeverity {
@@ -50,16 +60,20 @@ function formatDate(iso: string): string {
   });
 }
 
-// Data local no formato do <input type="date"> (YYYY-MM-DD).
-function toDateInput(date: Date): string {
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
-}
-
-function defaultPrUrl(repo: string, prNumber: string): string {
-  return repo && prNumber
-    ? `https://github.com/${repo}/pull/${prNumber}`
-    : "https://github.com/org/repo/pull/123";
+function PrLink({ url, className }: { url: string; className: string }) {
+  const href = safeHref(url);
+  if (!href) return null;
+  return (
+    <a
+      href={href}
+      target="_blank"
+      rel="noopener noreferrer"
+      aria-label="Abrir PR no GitHub"
+      className={className}
+    >
+      <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+    </a>
+  );
 }
 
 const fieldClass =
@@ -76,12 +90,7 @@ export function HistoryPage() {
     saveError,
   } = useAppSelector((s) => s.history);
 
-  const [formRepo, setFormRepo] = useState("");
-  const [formPrNumber, setFormPrNumber] = useState("");
-  const [formPrUrl, setFormPrUrl] = useState("");
-  const [formIssues, setFormIssues] = useState("0");
-  const [formSummary, setFormSummary] = useState("");
-  const [formDate, setFormDate] = useState("");
+  const [form, setForm] = useState<ReviewFormValues>(() => emptyReviewForm());
   const [reviewToView, setReviewToView] = useState<ReviewHistory | null>(null);
   const [reviewToDelete, setReviewToDelete] = useState<ReviewHistory | null>(
     null
@@ -95,62 +104,31 @@ export function HistoryPage() {
     ? history.find((r) => r.id === editingReviewId)
     : null;
 
+  function setField<K extends keyof ReviewFormValues>(
+    field: K,
+    value: ReviewFormValues[K]
+  ) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
   function handleOpenNew() {
-    setFormRepo("");
-    setFormPrNumber("");
-    setFormPrUrl("");
-    setFormIssues("0");
-    setFormSummary("");
-    setFormDate(toDateInput(new Date()));
+    setForm(emptyReviewForm());
     dispatch(openModal(null));
   }
 
   function handleOpenEdit(review: ReviewHistory) {
     setReviewToView(null);
-    setFormRepo(review.repo);
-    setFormPrNumber(String(review.pr_number));
-    setFormPrUrl(review.pr_url);
-    setFormIssues(String(review.issues_found));
-    setFormSummary(review.review_summary ?? "");
-    setFormDate(toDateInput(new Date(review.reviewed_at)));
+    setForm(reviewToForm(review));
     dispatch(openModal(review.id));
   }
 
-  const prNumber = Number(formPrNumber);
-  const issues = Number(formIssues);
-  const canSave =
-    formRepo.trim() !== "" &&
-    Number.isInteger(prNumber) &&
-    prNumber > 0 &&
-    formIssues !== "" &&
-    Number.isInteger(issues) &&
-    issues >= 0 &&
-    formDate !== "";
-
-  // Mantém o horário original se a data não mudou; senão usa meio-dia local,
-  // para o dia não trocar por causa do fuso.
-  function reviewedAtFromForm(): string {
-    if (editingReview) {
-      if (formDate === toDateInput(new Date(editingReview.reviewed_at))) {
-        return editingReview.reviewed_at;
-      }
-    } else if (formDate === toDateInput(new Date())) {
-      return new Date().toISOString();
-    }
-    return new Date(`${formDate}T12:00:00`).toISOString();
-  }
+  const formErrors = getReviewFormErrors(form);
+  const canSave = toReviewInput(form, editingReview) !== null;
 
   async function handleSave() {
-    if (!canSave) return;
-    const repo = formRepo.trim();
-    const input = {
-      repo,
-      pr_number: prNumber,
-      pr_url: formPrUrl.trim() || defaultPrUrl(repo, String(prNumber)),
-      issues_found: issues,
-      review_summary: formSummary.trim() || null,
-      reviewed_at: reviewedAtFromForm(),
-    };
+    // Calcula na hora do clique: reviewed_at de hoje usa o horário atual.
+    const input = toReviewInput(form, editingReview);
+    if (!input) return;
     if (editingReviewId) {
       await dispatch(updateReview({ id: editingReviewId, input }));
     } else {
@@ -298,15 +276,10 @@ export function HistoryPage() {
                       >
                         <Trash2 className="h-3.5 w-3.5" />
                       </Button>
-                      <a
-                        href={review.pr_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label="Abrir PR no GitHub"
+                      <PrLink
+                        url={review.pr_url}
                         className="inline-flex h-8 w-8 items-center justify-center text-gray-500 hover:text-indigo-400 transition-colors"
-                      >
-                        <ExternalLink className="h-3.5 w-3.5" />
-                      </a>
+                      />
                     </div>
                   </TableCell>
                 </TableRow>
@@ -355,15 +328,21 @@ export function HistoryPage() {
                     {reviewToView.review_summary ?? "Sem resumo."}
                   </p>
                 </div>
-                <a
-                  href={reviewToView.pr_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1.5 break-all text-sm text-indigo-400 hover:text-indigo-300"
-                >
-                  <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
-                  {reviewToView.pr_url}
-                </a>
+                {safeHref(reviewToView.pr_url) ? (
+                  <a
+                    href={safeHref(reviewToView.pr_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 break-all text-sm text-indigo-400 hover:text-indigo-300"
+                  >
+                    <ExternalLink className="h-3.5 w-3.5 flex-shrink-0" />
+                    {reviewToView.pr_url}
+                  </a>
+                ) : (
+                  <p className="break-all text-sm text-gray-500">
+                    URL inválida: {reviewToView.pr_url}
+                  </p>
+                )}
               </div>
 
               <DialogFooter>
@@ -408,11 +387,13 @@ export function HistoryPage() {
                 </Label>
                 <Input
                   id="review-repo"
-                  value={formRepo}
-                  onChange={(e) => setFormRepo(e.target.value)}
+                  value={form.repo}
+                  maxLength={FIELD_LIMITS.reviewRepo}
+                  onChange={(e) => setField("repo", e.target.value)}
                   placeholder="Ex: alura/devreview"
                   className={fieldClass}
                 />
+                <FieldError message={formErrors.repo} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="review-pr" className="text-gray-300">
@@ -423,11 +404,12 @@ export function HistoryPage() {
                   type="number"
                   min={1}
                   step={1}
-                  value={formPrNumber}
-                  onChange={(e) => setFormPrNumber(e.target.value)}
+                  value={form.prNumber}
+                  onChange={(e) => setField("prNumber", e.target.value)}
                   placeholder="142"
                   className={fieldClass}
                 />
+                <FieldError message={formErrors.prNumber} />
               </div>
             </div>
 
@@ -438,11 +420,16 @@ export function HistoryPage() {
               <Input
                 id="review-url"
                 type="url"
-                value={formPrUrl}
-                onChange={(e) => setFormPrUrl(e.target.value)}
-                placeholder={defaultPrUrl(formRepo.trim(), formPrNumber)}
+                value={form.prUrl}
+                maxLength={FIELD_LIMITS.reviewPrUrl}
+                onChange={(e) => setField("prUrl", e.target.value)}
+                placeholder={defaultPrUrl(
+                  form.repo.trim() || "org/repo",
+                  form.prNumber.trim() || "123"
+                )}
                 className={fieldClass}
               />
+              <FieldError message={formErrors.prUrl} />
               <p className="text-xs text-gray-500">
                 Se ficar em branco, é montada a partir do repositório e do
                 número do PR.
@@ -459,10 +446,11 @@ export function HistoryPage() {
                   type="number"
                   min={0}
                   step={1}
-                  value={formIssues}
-                  onChange={(e) => setFormIssues(e.target.value)}
+                  value={form.issues}
+                  onChange={(e) => setField("issues", e.target.value)}
                   className={fieldClass}
                 />
+                <FieldError message={formErrors.issues} />
               </div>
               <div className="space-y-1.5">
                 <Label htmlFor="review-date" className="text-gray-300">
@@ -471,8 +459,8 @@ export function HistoryPage() {
                 <Input
                   id="review-date"
                   type="date"
-                  value={formDate}
-                  onChange={(e) => setFormDate(e.target.value)}
+                  value={form.date}
+                  onChange={(e) => setField("date", e.target.value)}
                   className={`${fieldClass} [color-scheme:dark]`}
                 />
               </div>
@@ -485,11 +473,13 @@ export function HistoryPage() {
               <Textarea
                 id="review-summary"
                 rows={4}
-                value={formSummary}
-                onChange={(e) => setFormSummary(e.target.value)}
+                value={form.summary}
+                maxLength={FIELD_LIMITS.reviewSummary}
+                onChange={(e) => setField("summary", e.target.value)}
                 placeholder="Principais pontos encontrados no review (opcional)"
                 className={fieldClass}
               />
+              <FieldError message={formErrors.summary} />
             </div>
 
             {saveError && (

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Eye, FileText, Pencil, Plus, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { FieldError } from "@/components/shared/FieldError";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -33,6 +34,14 @@ import {
   deleteAdr,
 } from "@/store/slices/adrsSlice";
 import { TEAM_ID } from "@/lib/team";
+import { FIELD_LIMITS } from "@/lib/validation";
+import {
+  AdrFormValues,
+  adrToForm,
+  emptyAdrForm,
+  getAdrFormErrors,
+  toAdrInput,
+} from "@/lib/forms/adrForm";
 import { Adr, AdrStatus } from "@/types";
 import { cn } from "@/lib/utils";
 
@@ -104,10 +113,7 @@ export function AdrsPage() {
     saveError,
   } = useAppSelector((s) => s.adrs);
 
-  const [formTitle, setFormTitle] = useState("");
-  const [formContext, setFormContext] = useState("");
-  const [formDecision, setFormDecision] = useState("");
-  const [formStatus, setFormStatus] = useState<AdrStatus>("proposed");
+  const [form, setForm] = useState<AdrFormValues>(emptyAdrForm);
   const [adrToView, setAdrToView] = useState<Adr | null>(null);
   const [adrToDelete, setAdrToDelete] = useState<Adr | null>(null);
 
@@ -119,40 +125,33 @@ export function AdrsPage() {
     ? adrs.find((a) => a.id === editingAdrId)
     : null;
 
+  function setField<K extends keyof AdrFormValues>(
+    field: K,
+    value: AdrFormValues[K]
+  ) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
   function handleOpenNew() {
-    setFormTitle("");
-    setFormContext("");
-    setFormDecision("");
-    setFormStatus("proposed");
+    setForm(emptyAdrForm());
     dispatch(openModal(null));
   }
 
   function handleOpenEdit(adr: Adr) {
     setAdrToView(null);
-    setFormTitle(adr.title);
-    setFormContext(adr.context);
-    setFormDecision(adr.decision);
-    setFormStatus(adr.status);
+    setForm(adrToForm(adr));
     dispatch(openModal(adr.id));
   }
 
-  const canSave =
-    formTitle.trim() !== "" &&
-    formContext.trim() !== "" &&
-    formDecision.trim() !== "";
+  const formErrors = getAdrFormErrors(form);
+  const adrInput = toAdrInput(form);
 
   async function handleSave() {
-    if (!canSave) return;
-    const input = {
-      title: formTitle.trim(),
-      context: formContext.trim(),
-      decision: formDecision.trim(),
-      status: formStatus,
-    };
+    if (!adrInput) return;
     if (editingAdrId) {
-      await dispatch(updateAdr({ id: editingAdrId, input }));
+      await dispatch(updateAdr({ id: editingAdrId, input: adrInput }));
     } else {
-      await dispatch(createAdr({ teamId: TEAM_ID, input }));
+      await dispatch(createAdr({ teamId: TEAM_ID, input: adrInput }));
     }
   }
 
@@ -385,11 +384,13 @@ export function AdrsPage() {
               </Label>
               <Input
                 id="adr-title"
-                value={formTitle}
-                onChange={(e) => setFormTitle(e.target.value)}
+                value={form.title}
+                maxLength={FIELD_LIMITS.adrTitle}
+                onChange={(e) => setField("title", e.target.value)}
                 placeholder="Ex: Usar Redux Toolkit para estado global"
                 className={fieldClass}
               />
+              <FieldError message={formErrors.title} />
             </div>
 
             <div className="space-y-1.5">
@@ -399,11 +400,13 @@ export function AdrsPage() {
               <Textarea
                 id="adr-context"
                 rows={4}
-                value={formContext}
-                onChange={(e) => setFormContext(e.target.value)}
+                value={form.context}
+                maxLength={FIELD_LIMITS.adrContext}
+                onChange={(e) => setField("context", e.target.value)}
                 placeholder="Qual problema ou situação motivou a decisão?"
                 className={fieldClass}
               />
+              <FieldError message={formErrors.context} />
             </div>
 
             <div className="space-y-1.5">
@@ -413,18 +416,20 @@ export function AdrsPage() {
               <Textarea
                 id="adr-decision"
                 rows={4}
-                value={formDecision}
-                onChange={(e) => setFormDecision(e.target.value)}
+                value={form.decision}
+                maxLength={FIELD_LIMITS.adrDecision}
+                onChange={(e) => setField("decision", e.target.value)}
                 placeholder="O que foi decidido e por quê?"
                 className={fieldClass}
               />
+              <FieldError message={formErrors.decision} />
             </div>
 
             <div className="space-y-1.5">
               <Label className="text-gray-300">Status</Label>
               <Select
-                value={formStatus}
-                onValueChange={(v) => setFormStatus(v as AdrStatus)}
+                value={form.status}
+                onValueChange={(v) => setField("status", v as AdrStatus)}
               >
                 <SelectTrigger className="w-48 border-gray-700 bg-gray-800 text-white">
                   <SelectValue />
@@ -458,7 +463,7 @@ export function AdrsPage() {
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-500"
-              disabled={saving || !canSave}
+              disabled={saving || !adrInput}
               onClick={handleSave}
             >
               {saving ? "Salvando..." : "Salvar"}
