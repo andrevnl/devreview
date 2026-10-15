@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
-import { Plus, Pencil } from "lucide-react";
+import { Plus, Pencil, Trash2 } from "lucide-react";
 import { Header } from "@/components/layout/Header";
+import { FieldError } from "@/components/shared/FieldError";
 import { SeverityBadge } from "@/components/shared/SeverityBadge";
 import { CategoryBadge } from "@/components/shared/CategoryBadge";
 import { Button } from "@/components/ui/button";
@@ -24,10 +25,12 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { useAppDispatch, useAppSelector } from "@/store/hooks";
 import {
   fetchRules,
@@ -35,18 +38,36 @@ import {
   setSeverityFilter,
   openModal,
   closeModal,
+  clearSaveError,
+  createRule,
+  updateRule,
+  deleteRule,
 } from "@/store/slices/rulesSlice";
 import { TEAM_ID } from "@/lib/team";
-import { RuleCategory, RuleSeverity } from "@/types";
+import { FIELD_LIMITS } from "@/lib/validation";
+import {
+  RuleFormValues,
+  emptyRuleForm,
+  getRuleFormErrors,
+  ruleToForm,
+  toRuleInput,
+} from "@/lib/forms/ruleForm";
+import { ReviewRule, RuleCategory, RuleSeverity } from "@/types";
 
 export function RulesPage() {
   const dispatch = useAppDispatch();
-  const { items: rules, categoryFilter, severityFilter, isModalOpen, editingRuleId } =
-    useAppSelector((s) => s.rules);
+  const {
+    items: rules,
+    categoryFilter,
+    severityFilter,
+    isModalOpen,
+    editingRuleId,
+    saving,
+    saveError,
+  } = useAppSelector((s) => s.rules);
 
-  const [formRule, setFormRule] = useState("");
-  const [formCategory, setFormCategory] = useState<RuleCategory>("style");
-  const [formSeverity, setFormSeverity] = useState<RuleSeverity>("warning");
+  const [form, setForm] = useState<RuleFormValues>(emptyRuleForm);
+  const [ruleToDelete, setRuleToDelete] = useState<ReviewRule | null>(null);
 
   useEffect(() => {
     dispatch(fetchRules(TEAM_ID));
@@ -56,21 +77,47 @@ export function RulesPage() {
     ? rules.find((r) => r.id === editingRuleId)
     : null;
 
+  function setField<K extends keyof RuleFormValues>(
+    field: K,
+    value: RuleFormValues[K]
+  ) {
+    setForm((f) => ({ ...f, [field]: value }));
+  }
+
   function handleOpenNew() {
-    setFormRule("");
-    setFormCategory("style");
-    setFormSeverity("warning");
+    setForm(emptyRuleForm());
     dispatch(openModal(null));
   }
 
   function handleOpenEdit(id: string) {
     const rule = rules.find((r) => r.id === id);
     if (rule) {
-      setFormRule(rule.rule);
-      setFormCategory(rule.category);
-      setFormSeverity(rule.severity);
+      setForm(ruleToForm(rule));
       dispatch(openModal(id));
     }
+  }
+
+  const formErrors = getRuleFormErrors(form);
+  const ruleInput = toRuleInput(form);
+
+  async function handleSave() {
+    if (!ruleInput) return;
+    if (editingRuleId) {
+      await dispatch(updateRule({ id: editingRuleId, input: ruleInput }));
+    } else {
+      await dispatch(createRule({ teamId: TEAM_ID, input: ruleInput }));
+    }
+  }
+
+  function handleOpenDelete(rule: ReviewRule) {
+    dispatch(clearSaveError());
+    setRuleToDelete(rule);
+  }
+
+  async function handleConfirmDelete() {
+    if (!ruleToDelete) return;
+    const result = await dispatch(deleteRule(ruleToDelete.id));
+    if (deleteRule.fulfilled.match(result)) setRuleToDelete(null);
   }
 
   const filtered = rules.filter((rule) => {
@@ -149,7 +196,7 @@ export function RulesPage() {
                 <TableHead className="w-36 text-gray-400">Categoria</TableHead>
                 <TableHead className="w-28 text-gray-400">Severidade</TableHead>
                 <TableHead className="w-24 text-gray-400">Status</TableHead>
-                <TableHead className="w-16 text-gray-400" />
+                <TableHead className="w-24 text-gray-400" />
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -179,14 +226,26 @@ export function RulesPage() {
                     </span>
                   </TableCell>
                   <TableCell>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-8 w-8 text-gray-500 hover:text-white"
-                      onClick={() => handleOpenEdit(rule.id)}
-                    >
-                      <Pencil className="h-3.5 w-3.5" />
-                    </Button>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-500 hover:text-white"
+                        aria-label="Editar regra"
+                        onClick={() => handleOpenEdit(rule.id)}
+                      >
+                        <Pencil className="h-3.5 w-3.5" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-500 hover:text-red-400"
+                        aria-label="Excluir regra"
+                        onClick={() => handleOpenDelete(rule)}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    </div>
                   </TableCell>
                 </TableRow>
               ))}
@@ -206,7 +265,10 @@ export function RulesPage() {
       </div>
 
       {/* Modal */}
-      <Dialog open={isModalOpen} onOpenChange={() => dispatch(closeModal())}>
+      <Dialog
+        open={isModalOpen}
+        onOpenChange={(open) => !open && !saving && dispatch(closeModal())}
+      >
         <DialogContent className="border-gray-800 bg-gray-900 text-white sm:max-w-lg">
           <DialogHeader>
             <DialogTitle>
@@ -221,19 +283,21 @@ export function RulesPage() {
               </Label>
               <Input
                 id="rule-text"
-                value={formRule}
-                onChange={(e) => setFormRule(e.target.value)}
+                value={form.rule}
+                maxLength={FIELD_LIMITS.ruleText}
+                onChange={(e) => setField("rule", e.target.value)}
                 placeholder="Ex: Nunca expor tokens em código-fonte"
                 className="border-gray-700 bg-gray-800 text-white placeholder:text-gray-600"
               />
+              <FieldError message={formErrors.rule} />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1.5">
                 <Label className="text-gray-300">Categoria</Label>
                 <Select
-                  value={formCategory}
-                  onValueChange={(v) => setFormCategory(v as RuleCategory)}
+                  value={form.category}
+                  onValueChange={(v) => setField("category", v as RuleCategory)}
                 >
                   <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
                     <SelectValue />
@@ -250,8 +314,8 @@ export function RulesPage() {
               <div className="space-y-1.5">
                 <Label className="text-gray-300">Severidade</Label>
                 <Select
-                  value={formSeverity}
-                  onValueChange={(v) => setFormSeverity(v as RuleSeverity)}
+                  value={form.severity}
+                  onValueChange={(v) => setField("severity", v as RuleSeverity)}
                 >
                   <SelectTrigger className="border-gray-700 bg-gray-800 text-white">
                     <SelectValue />
@@ -264,21 +328,93 @@ export function RulesPage() {
                 </Select>
               </div>
             </div>
+
+            {editingRule && (
+              <div className="flex items-center justify-between rounded-md border border-gray-800 bg-gray-800/50 px-3 py-2.5">
+                <div className="space-y-0.5">
+                  <Label htmlFor="rule-active" className="text-gray-300">
+                    Regra ativa
+                  </Label>
+                  <p className="text-xs text-gray-500">
+                    Regras inativas ficam salvas, mas não são aplicadas nos
+                    reviews.
+                  </p>
+                </div>
+                <Switch
+                  id="rule-active"
+                  checked={form.active}
+                  onCheckedChange={(v) => setField("active", v)}
+                  className="data-[state=checked]:bg-indigo-600 data-[state=unchecked]:bg-gray-700"
+                />
+              </div>
+            )}
+
+            {saveError && (
+              <p role="alert" className="text-sm text-red-400">
+                {saveError}
+              </p>
+            )}
           </div>
 
           <DialogFooter>
             <Button
               variant="ghost"
               className="text-gray-400 hover:text-white"
+              disabled={saving}
               onClick={() => dispatch(closeModal())}
             >
               Cancelar
             </Button>
             <Button
               className="bg-indigo-600 hover:bg-indigo-500"
-              onClick={() => dispatch(closeModal())}
+              disabled={saving || !ruleInput}
+              onClick={handleSave}
             >
-              Salvar
+              {saving ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Confirmação de exclusão */}
+      <Dialog
+        open={ruleToDelete !== null}
+        onOpenChange={(open) => !open && !saving && setRuleToDelete(null)}
+      >
+        <DialogContent className="border-gray-800 bg-gray-900 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Excluir regra</DialogTitle>
+            <DialogDescription className="text-gray-400">
+              Esta ação não pode ser desfeita. A regra abaixo será removida do
+              banco de dados.
+            </DialogDescription>
+          </DialogHeader>
+
+          <p className="rounded-md border border-gray-800 bg-gray-800/50 px-3 py-2 text-sm">
+            {ruleToDelete?.rule}
+          </p>
+
+          {saveError && (
+            <p role="alert" className="text-sm text-red-400">
+              {saveError}
+            </p>
+          )}
+
+          <DialogFooter>
+            <Button
+              variant="ghost"
+              className="text-gray-400 hover:text-white"
+              disabled={saving}
+              onClick={() => setRuleToDelete(null)}
+            >
+              Cancelar
+            </Button>
+            <Button
+              className="bg-red-600 hover:bg-red-500"
+              disabled={saving}
+              onClick={handleConfirmDelete}
+            >
+              {saving ? "Excluindo..." : "Excluir"}
             </Button>
           </DialogFooter>
         </DialogContent>

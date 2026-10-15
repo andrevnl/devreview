@@ -20,7 +20,7 @@ export interface ReviewHistory {
   pr_url: string;
   pr_number: number;
   repo: string;
-  review_summary: string;
+  review_summary: string | null;
   issues_found: number;
   reviewed_at: string;
 }
