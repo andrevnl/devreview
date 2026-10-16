@@ -2,6 +2,7 @@ import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js';
 import { z } from 'zod';
 import { getSupabase } from '../lib/supabase.js';
 import type { RuleSeverity } from '../schemas.js';
+import { READ_ONLY_ANNOTATIONS, UNTRUSTED_TOOL_HINT, untrustedResult } from '../lib/untrusted.js';
 
 // severity é texto no banco: .order() seria alfabético (error, info, warning).
 const SEVERITY_WEIGHT: Record<RuleSeverity, number> = { error: 0, warning: 1, info: 2 };
@@ -13,7 +14,8 @@ export function registerReviewRulesTools(server: McpServer) {
 			title: 'Get Team Review Rules',
 			description:
 				'Retrieves active code review rules for a team, sorted by severity (error, warning, info) and category. ' +
-				"Use when reviewing a PR to know the team's coding standards.",
+				"Use when reviewing a PR to know the team's coding standards." +
+				UNTRUSTED_TOOL_HINT,
 			inputSchema: {
 				team_id: z.string().uuid().describe('UUID of the team (from the teams table)'),
 				category: z
@@ -21,6 +23,7 @@ export function registerReviewRulesTools(server: McpServer) {
 					.optional()
 					.describe('Filter by category. Omit to get all categories.'),
 			},
+			annotations: READ_ONLY_ANNOTATIONS,
 		},
 		async ({ team_id, category }) => {
 			let query = getSupabase()
@@ -42,14 +45,7 @@ export function registerReviewRulesTools(server: McpServer) {
 					a.category.localeCompare(b.category),
 			);
 
-			return {
-				content: [
-					{
-						type: 'text',
-						text: JSON.stringify({ rules, count: rules.length }),
-					},
-				],
-			};
+			return untrustedResult('review_rules', { rules, count: rules.length });
 		},
 	);
 }

@@ -43,7 +43,7 @@ export const createReview = createAsyncThunk(
       .insert({ ...input, team_id: teamId })
       .select()
       .single();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(saveErrorMessage(error));
     return data as ReviewHistory;
   }
 );
@@ -56,7 +56,7 @@ export const updateReview = createAsyncThunk(
       .update(input)
       .eq("id", id)
       .select();
-    if (error) throw new Error(error.message);
+    if (error) throw new Error(saveErrorMessage(error));
     if (!data?.length) throw new Error(BLOCKED_MESSAGE);
     return data[0] as ReviewHistory;
   }
@@ -75,6 +75,13 @@ export const deleteReview = createAsyncThunk(
     return id;
   }
 );
+
+// unique (team_id, repo, pr_number): cada PR tem um único review no histórico.
+function saveErrorMessage(error: { code?: string; message: string }) {
+  return error.code === "23505"
+    ? "Já existe um review para este PR neste repositório. Edite o review existente."
+    : error.message;
+}
 
 // Mantém a ordem do fetch (mais recente primeiro): a data pode mudar na edição.
 function sortByReviewedAt(items: ReviewHistory[]) {
