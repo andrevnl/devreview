@@ -50,7 +50,7 @@ cp apps/mcp-server/.env.example apps/mcp-server/.env
 npm run mcp:inspector
 ```
 
-Abra a URL completa impressa no terminal (`http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`). O Inspector carrega `apps/mcp-server/inspector.config.json` com o servidor **devreview** (STDIO, `node --env-file=.env build/index.js`), que expõe as tools `get_team_review_rules`, `search_team_adrs`, `get_review_metrics` e `record_review`, o resource `review://schema` e o prompt `code-review` (args `repo` no formato `owner/name`, `pr_number` e `team_id`). As tools usam o Supabase na nuvem com a chave publishable, sujeita ao RLS. A única escrita é a `record_review`, que grava o review finalizado em `review_history` (o RLS só permite o time demo). O prompt `code-review` manda o modelo chamá-la uma vez ao terminar o review. Time demo: `11111111-1111-1111-1111-111111111111`.
+Abra a URL completa impressa no terminal (`http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`). O Inspector carrega `apps/mcp-server/inspector.config.json` com o servidor **devreview** (STDIO, `node --env-file=.env build/index.js`), que expõe as tools `get_team_review_rules`, `search_team_adrs`, `get_review_metrics` e `record_review`, o resource `review://schema` e o prompt `code-review` (args `repo` no formato `owner/name`, `pr_number` e `team_id`). As tools usam o Supabase na nuvem com a chave publishable, sujeita ao RLS. A única escrita é a `record_review`, que grava o review finalizado em `review_history` (o RLS só permite o time demo). Cada PR tem um único registro: gravar de novo o mesmo PR substitui o review anterior (unique `team_id, repo, pr_number`). O prompt `code-review` manda o modelo chamá-la uma vez ao terminar o review. Time demo: `11111111-1111-1111-1111-111111111111`.
 
 Pela linha de comando:
 
@@ -65,7 +65,7 @@ Regras, ADRs e histórico são cadastrados por usuários no app web, e o diff do
 - O prompt `code-review` (`apps/mcp-server/src/prompts/review-policy.ts`) define a hierarquia de confiança: as instruções do prompt vêm primeiro; regras e ADRs são só critérios de avaliação; diff, metadados do PR e resultados de tools são dado. Instruções encontradas nesse conteúdo são ignoradas e citadas no review como suspeita de manipulação.
 - Os argumentos do prompt são validados (`pr_number` numérico, `team_id` UUID) antes de entrar no texto.
 - As tools de leitura devolvem o resultado num envelope `{ "trust": "untrusted_data", "source", "note", "data" }` e são anunciadas como read-only.
-- A `record_review` valida os campos com os mesmos limites das constraints do banco, e o prompt só permite uma chamada, com valores tirados dos próprios achados do review.
+- A `record_review` valida os campos com os mesmos limites das constraints do banco, e o prompt só permite uma chamada, com valores tirados dos próprios achados do review. Se ela for chamada de novo para o mesmo PR, o upsert substitui a linha em vez de duplicar o histórico.
 - As `instructions` do servidor repetem a política, para valer também fora do prompt.
 
 O prompt reduz o risco, mas não o elimina. Ao rodar reviews, não habilite tools de escrita do GitHub (aprovar, fazer merge, comentar) no mesmo cliente: menor privilégio é a defesa principal.
