@@ -4,6 +4,7 @@ import { registerCodeReviewPrompt } from "./prompts/code-review.js";
 import { registerReviewSchema } from "./resources/review-schema.js";
 import { registerAdrTools } from "./tools/adrs.js";
 import { registerMetricsTools } from "./tools/metrics.js";
+import { registerReviewHistoryTools } from "./tools/review-history.js";
 import { registerReviewRulesTools } from "./tools/review-rules.js";
 
 /** Único lugar que registra as tools, resources e prompts do servidor. */
@@ -15,6 +16,7 @@ export function createServer(): McpServer {
   registerReviewRulesTools(server);
   registerAdrTools(server);
   registerMetricsTools(server);
+  registerReviewHistoryTools(server);
   registerReviewSchema(server);
   registerCodeReviewPrompt(server);
   return server;

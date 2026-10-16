@@ -10,6 +10,7 @@
     "build": "tsc",
     "dev": "tsc --watch",
     "start": "node --env-file=.env build/index.js",
+    "test": "npm run build && node --test \"build/**/*.test.js\"",
     "inspector": "npm run build && npx -y @modelcontextprotocol/inspector@2.9.0 --config inspector.config.json",
     "inspector:cli": "npm run build && npx -y @modelcontextprotocol/inspector@2.9.0 --cli --config inspector.config.json"
   },

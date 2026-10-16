@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getSupabase } from "../lib/supabase.js";
+import { READ_ONLY_ANNOTATIONS, UNTRUSTED_TOOL_HINT, untrustedResult } from "../lib/untrusted.js";
 
 export function registerMetricsTools(server: McpServer) {
   server.registerTool(
@@ -9,7 +10,8 @@ export function registerMetricsTools(server: McpServer) {
       title: "Get Review Metrics",
       description:
         "Returns review metrics for a team: total reviews, average issues found, top repositories. " +
-        "Use for context on quality trends before reviewing a PR.",
+        "Use for context on quality trends before reviewing a PR." +
+        UNTRUSTED_TOOL_HINT,
       inputSchema: {
         team_id: z
           .string()
@@ -23,6 +25,7 @@ export function registerMetricsTools(server: McpServer) {
           .default(30)
           .describe("Look-back period in days (7-90, default: 30)"),
       },
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ team_id, days }) => {
       const since = new Date(Date.now() - days * 86_400_000).toISOString();
@@ -57,19 +60,12 @@ export function registerMetricsTools(server: McpServer) {
         .slice(0, 3)
         .map(([repo, reviews]) => ({ repo, reviews }));
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              period_days: days,
-              total_reviews: totalReviews,
-              avg_issues_per_review: avgIssues,
-              top_repos: topRepos,
-            }),
-          },
-        ],
-      };
+      return untrustedResult("review_history", {
+        period_days: days,
+        total_reviews: totalReviews,
+        avg_issues_per_review: avgIssues,
+        top_repos: topRepos,
+      });
     },
   );
 }

@@ -1,6 +1,7 @@
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { z } from "zod";
 import { getSupabase } from "../lib/supabase.js";
+import { READ_ONLY_ANNOTATIONS, UNTRUSTED_TOOL_HINT, untrustedResult } from "../lib/untrusted.js";
 
 export function registerAdrTools(server: McpServer) {
   server.registerTool(
@@ -9,7 +10,8 @@ export function registerAdrTools(server: McpServer) {
       title: "Search Team ADRs",
       description:
         "Searches accepted Architecture Decision Records by keyword. " +
-        "Use when a PR touches architectural concerns (state management, auth, caching, etc.).",
+        "Use when a PR touches architectural concerns (state management, auth, caching, etc.)." +
+        UNTRUSTED_TOOL_HINT,
       inputSchema: {
         team_id: z
           .string()
@@ -27,6 +29,7 @@ export function registerAdrTools(server: McpServer) {
             'Search term matched against ADR title and decision (e.g., "redux", "cache", "auth")',
           ),
       },
+      annotations: READ_ONLY_ANNOTATIONS,
     },
     async ({ team_id, keyword }) => {
       const { data, error } = await getSupabase()
@@ -40,17 +43,10 @@ export function registerAdrTools(server: McpServer) {
         throw new Error(`Failed to search ADRs: ${error.message}`);
       }
 
-      return {
-        content: [
-          {
-            type: "text",
-            text: JSON.stringify({
-              adrs: data ?? [],
-              count: data?.length ?? 0,
-            }),
-          },
-        ],
-      };
+      return untrustedResult("adrs", {
+        adrs: data ?? [],
+        count: data?.length ?? 0,
+      });
     },
   );
 }

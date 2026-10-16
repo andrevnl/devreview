@@ -50,12 +50,28 @@ cp apps/mcp-server/.env.example apps/mcp-server/.env
 npm run mcp:inspector
 ```
 
-Abra a URL completa impressa no terminal (`http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`). O Inspector carrega `apps/mcp-server/inspector.config.json` com o servidor **devreview** (STDIO, `node --env-file=.env build/index.js`), que expõe as tools `get_team_review_rules`, `search_team_adrs` e `get_review_metrics`, o resource `review://schema` e o prompt `code-review`. As tools leem do Supabase na nuvem com a chave publishable (sujeita ao RLS; o mcp-server só faz leitura). Time demo: `11111111-1111-1111-1111-111111111111`.
+Abra a URL completa impressa no terminal (`http://127.0.0.1:6274?MCP_INSPECTOR_API_TOKEN=...`). O Inspector carrega `apps/mcp-server/inspector.config.json` com o servidor **devreview** (STDIO, `node --env-file=.env build/index.js`), que expõe as tools `get_team_review_rules`, `search_team_adrs`, `get_review_metrics` e `record_review`, o resource `review://schema` e o prompt `code-review` (args `repo` no formato `owner/name`, `pr_number` e `team_id`). As tools usam o Supabase na nuvem com a chave publishable, sujeita ao RLS. A única escrita é a `record_review`, que grava o review finalizado em `review_history` (o RLS só permite o time demo). O prompt `code-review` manda o modelo chamá-la uma vez ao terminar o review. Time demo: `11111111-1111-1111-1111-111111111111`.
 
 Pela linha de comando:
 
 ```bash
 npm run mcp:inspector:cli -- --server devreview --method tools/list
+```
+
+### Segurança contra prompt injection
+
+Regras, ADRs e histórico são cadastrados por usuários no app web, e o diff do PR vem de fora. Por isso o servidor trata tudo isso como **dado não confiável**:
+
+- O prompt `code-review` (`apps/mcp-server/src/prompts/review-policy.ts`) define a hierarquia de confiança: as instruções do prompt vêm primeiro; regras e ADRs são só critérios de avaliação; diff, metadados do PR e resultados de tools são dado. Instruções encontradas nesse conteúdo são ignoradas e citadas no review como suspeita de manipulação.
+- Os argumentos do prompt são validados (`pr_number` numérico, `team_id` UUID) antes de entrar no texto.
+- As tools de leitura devolvem o resultado num envelope `{ "trust": "untrusted_data", "source", "note", "data" }` e são anunciadas como read-only.
+- A `record_review` valida os campos com os mesmos limites das constraints do banco, e o prompt só permite uma chamada, com valores tirados dos próprios achados do review.
+- As `instructions` do servidor repetem a política, para valer também fora do prompt.
+
+O prompt reduz o risco, mas não o elimina. Ao rodar reviews, não habilite tools de escrita do GitHub (aprovar, fazer merge, comentar) no mesmo cliente: menor privilégio é a defesa principal.
+
+```bash
+npm run mcp:test
 ```
 
 ## Estrutura
